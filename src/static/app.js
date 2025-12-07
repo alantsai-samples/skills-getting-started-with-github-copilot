@@ -20,14 +20,62 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
-        activityCard.innerHTML = `
-          <h4>${name}</h4>
-          <p>${details.description}</p>
-          <p><strong>Schedule:</strong> ${details.schedule}</p>
-          <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
-        `;
+
+          // Create participants section
+          let participantsSection = "";
+          if (details.participants.length > 0) {
+            participantsSection = `
+              <div class="participants-section">
+                <p class="participants-title"><strong>Participants:</strong></p>
+                <ul class="participants-list">
+                  ${details.participants.map(p => `
+                    <li>
+                      <span class="participant-name">${p}</span>
+                      <span class="delete-participant" title="Remove participant" data-activity="${name}" data-participant="${p}">&#128465;</span>
+                    </li>
+                  `).join("")}
+                </ul>
+              </div>
+            `;
+          } else {
+            participantsSection = `
+              <div class="participants-section">
+                <p class="participants-title"><strong>Participants:</strong> <span class="no-participants">No one signed up yet</span></p>
+              </div>
+            `;
+          }
+
+          activityCard.innerHTML = `
+            <h4>${name}</h4>
+            <p>${details.description}</p>
+            <p><strong>Schedule:</strong> ${details.schedule}</p>
+            <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+            ${participantsSection}
+          `;
 
         activitiesList.appendChild(activityCard);
+
+        // Add delete event listeners for participants
+        activityCard.querySelectorAll('.delete-participant').forEach(icon => {
+          icon.addEventListener('click', async (e) => {
+            const activityName = icon.getAttribute('data-activity');
+            const participant = icon.getAttribute('data-participant');
+            try {
+              const response = await fetch(`/activities/${encodeURIComponent(activityName)}/unregister`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ participant })
+              });
+              if (response.ok) {
+                fetchActivities(); // Refresh list
+              } else {
+                alert('Failed to unregister participant.');
+              }
+            } catch (err) {
+              alert('Error unregistering participant.');
+            }
+          });
+        });
 
         // Add option to select dropdown
         const option = document.createElement("option");
@@ -62,6 +110,7 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        fetchActivities(); // Refresh activities list after signup
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
